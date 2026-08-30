@@ -1,0 +1,584 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Akshara — find broken Indic text rendering</title>
+<meta name="description" content="Point it at a page. It tells you where your Hindi, Telugu, Tamil or Bengali text is clipped, tofu'd, or cut in half.">
+<style>
+  :root {
+    --paper:#FBF9F5; --ink:#17150F; --muted:#6E675C; --line:#E4DED2;
+    --card:#FFFFFF; --gold:#A87C2E; --err:#C0342C; --warn:#A5730F; --ok:#2E6B45;
+    --code-bg:#F4F0E8;
+    --serif: ui-serif, Georgia, "Iowan Old Style", "Times New Roman", serif;
+    --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, sans-serif;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+    --indic: "Kohinoor Devanagari", "Nirmala UI", "Noto Sans Devanagari", "Noto Serif Devanagari", sans-serif;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --paper:#121110; --ink:#EDE8DE; --muted:#9A9285; --line:#2C2925;
+            --card:#1A1917; --gold:#D2A353; --err:#E8756B; --warn:#D9A63F; --ok:#6DBE8C;
+            --code-bg:#1F1D1A; }
+  }
+  :root[data-theme="dark"] {
+    --paper:#121110; --ink:#EDE8DE; --muted:#9A9285; --line:#2C2925;
+    --card:#1A1917; --gold:#D2A353; --err:#E8756B; --warn:#D9A63F; --ok:#6DBE8C;
+    --code-bg:#1F1D1A;
+  }
+  :root[data-theme="light"] {
+    --paper:#FBF9F5; --ink:#17150F; --muted:#6E675C; --line:#E4DED2;
+    --card:#FFFFFF; --gold:#A87C2E; --err:#C0342C; --warn:#A5730F; --ok:#2E6B45;
+    --code-bg:#F4F0E8;
+  }
+
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--paper); color:var(--ink);
+         font:16px/1.65 var(--sans); -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:940px; margin:0 auto; padding:0 24px; }
+  a { color:inherit; }
+  h1,h2,h3 { font-family:var(--serif); font-weight:400; letter-spacing:-.01em; }
+  code, kbd { font-family:var(--mono); font-size:.88em; }
+  .eyebrow { font:600 11px/1.6 var(--mono); letter-spacing:.14em; text-transform:uppercase;
+             color:var(--gold); margin:0 0 14px; }
+  .muted { color:var(--muted); }
+  section { border-top:1px solid var(--line); padding:64px 0; }
+  .lede { font-size:18px; color:var(--muted); max-width:62ch; }
+
+  /* header */
+  header { padding:28px 0 0; }
+  .bar { display:flex; align-items:center; justify-content:space-between; gap:16px; }
+  .logo { display:flex; align-items:baseline; gap:10px; }
+  .logo b { font:400 21px var(--serif); letter-spacing:.02em; }
+  .logo span { font-family:var(--indic); font-size:21px; color:var(--gold); }
+  .navlinks { display:flex; gap:20px; font-size:14px; }
+  .navlinks a { color:var(--muted); text-decoration:none; }
+  .navlinks a:hover { color:var(--ink); }
+  #themeBtn { background:none; border:1px solid var(--line); color:var(--muted);
+              border-radius:999px; padding:5px 12px; font:inherit; font-size:13px; cursor:pointer; }
+
+  /* hero */
+  .hero { padding:74px 0 64px; }
+  .hero h1 { font-size:clamp(34px,6vw,54px); line-height:1.1; margin:0 0 20px; max-width:17ch; }
+  .hero h1 em { font-style:normal; color:var(--gold); }
+
+  /* the specimen: the whole pitch in one image */
+  .specimen { display:grid; grid-template-columns:1fr 1fr; gap:2px; background:var(--line);
+              border:1px solid var(--line); border-radius:10px; overflow:hidden; margin:40px 0 0; }
+  .spec { background:var(--card); padding:20px; }
+  .spec .lbl { font:600 10px/1.6 var(--mono); letter-spacing:.1em; text-transform:uppercase;
+               margin-bottom:14px; }
+  .spec.bad .lbl { color:var(--err); }
+  .spec.good .lbl { color:var(--ok); }
+  .spec .txt { font-family:var(--indic); font-size:24px; }
+  .spec.bad .txt { line-height:1.0; overflow:hidden; height:3em; }
+  .spec.good .txt { line-height:1.62; }
+  .caption { font-size:13.5px; color:var(--muted); margin:14px 0 0; }
+
+  /* command generator */
+  .runner { margin:36px 0 0; }
+  .field { display:flex; gap:8px; flex-wrap:wrap; }
+  .field input { flex:1; min-width:240px; padding:13px 15px; border:1px solid var(--line);
+                 border-radius:8px; background:var(--card); color:var(--ink);
+                 font:14px var(--mono); }
+  .field input:focus { outline:none; border-color:var(--gold);
+                       box-shadow:0 0 0 3px color-mix(in srgb, var(--gold) 18%, transparent); }
+  .field button { padding:13px 22px; border:none; border-radius:8px; background:var(--ink);
+                  color:var(--paper); font:600 14px var(--sans); cursor:pointer; }
+  .field button:hover { opacity:.88; }
+  pre.cmd { margin:12px 0 0; background:var(--code-bg); border:1px solid var(--line);
+            border-radius:8px; padding:14px 16px; overflow-x:auto; font-size:13.5px; }
+  pre.cmd .c { color:var(--muted); }
+
+  /* generic cards */
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(250px,1fr)); gap:16px; margin-top:32px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:20px; }
+  .card h3 { margin:0 0 6px; font:600 13px var(--mono); letter-spacing:.04em; color:var(--gold); }
+  .card p { margin:0; font-size:14.5px; color:var(--muted); }
+
+  /* live lab */
+  .lab { background:var(--card); border:1px solid var(--line); border-radius:12px;
+         padding:24px; margin-top:28px; }
+  .lab .stage { border:1px dashed var(--line); border-radius:8px; padding:16px; overflow:hidden; }
+  #lhText { max-width:34ch; }
+  .lab .stage.clip { background:color-mix(in srgb, var(--err) 7%, transparent); border-color:var(--err); }
+  #lhText { font-family:var(--indic); font-size:26px; margin:0; }
+  .controls { display:flex; align-items:center; gap:14px; margin-top:18px; flex-wrap:wrap; }
+  .controls label { font:600 11px var(--mono); letter-spacing:.08em; text-transform:uppercase; color:var(--muted); }
+  input[type=range] { flex:1; min-width:180px; accent-color:var(--gold); }
+  .readout { display:flex; gap:22px; flex-wrap:wrap; margin-top:16px; font:13px var(--mono); }
+  .readout div span { color:var(--muted); }
+  .verdict { margin-top:14px; font:600 13px var(--mono); }
+  .verdict.bad { color:var(--err); } .verdict.good { color:var(--ok); }
+
+  /* truncation lab */
+  .tcols { display:grid; grid-template-columns:1fr 1fr; gap:2px; background:var(--line);
+           border:1px solid var(--line); border-radius:8px; overflow:hidden; margin-top:18px; }
+  .tcol { background:var(--card); padding:16px; }
+  .tcol .lbl { font:600 10px var(--mono); letter-spacing:.08em; text-transform:uppercase; margin-bottom:10px; }
+  .tcol.bad .lbl { color:var(--err); } .tcol.good .lbl { color:var(--ok); }
+  .tcol .out { font-family:var(--indic); font-size:24px; min-height:1.6em; }
+  .tcol .meta { font:12px var(--mono); color:var(--muted); margin-top:8px; }
+
+  /* akshara diagram */
+  .cluster { display:flex; gap:8px; flex-wrap:wrap; align-items:stretch; margin-top:26px; }
+  .cp { background:var(--card); border:1px solid var(--line); border-radius:8px;
+        padding:12px 14px; text-align:center; min-width:78px; }
+  .cp .g { font-family:var(--indic); font-size:26px; line-height:1.5; }
+  .cp .n { font:11px var(--mono); color:var(--muted); margin-top:4px; }
+  .cp .r { font:10px var(--mono); color:var(--gold); text-transform:uppercase; letter-spacing:.06em; }
+  .arrowrow { display:flex; align-items:center; gap:14px; margin-top:20px; flex-wrap:wrap; }
+  .whole { background:var(--card); border:2px solid var(--gold); border-radius:8px;
+           padding:12px 22px; font-family:var(--indic); font-size:32px; }
+
+  /* report mock */
+  .report { background:var(--card); border:1px solid var(--line); border-radius:12px;
+            overflow:hidden; margin-top:28px; }
+  .rhead { padding:16px 20px; border-bottom:1px solid var(--line); display:flex;
+           justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  .rhead .u { font:13px var(--mono); }
+  .pills { display:flex; gap:8px; }
+  .pill { font:600 11px var(--mono); padding:3px 9px; border-radius:999px; }
+  .pill.e { background:color-mix(in srgb,var(--err) 15%,transparent); color:var(--err); }
+  .pill.w { background:color-mix(in srgb,var(--warn) 18%,transparent); color:var(--warn); }
+  .pill.i { background:color-mix(in srgb,var(--muted) 15%,transparent); color:var(--muted); }
+  .finding { padding:16px 20px; border-bottom:1px solid var(--line); display:flex; gap:14px; }
+  .finding:last-child { border-bottom:none; }
+  .sev { width:3px; border-radius:2px; flex:none; }
+  .sev.error { background:var(--err); } .sev.warning { background:var(--warn); } .sev.info { background:var(--muted); }
+  .fbody { min-width:0; flex:1; }
+  .ftitle { font-size:15px; margin:0 0 4px; }
+  .fmeta { font:11px var(--mono); color:var(--muted); text-transform:uppercase; letter-spacing:.07em; }
+  .fsample { font-family:var(--indic); font-size:19px; margin:8px 0; }
+  .ffix { font-size:13.5px; color:var(--muted); }
+  .ffix b { color:var(--ok); font:600 11px var(--mono); text-transform:uppercase; letter-spacing:.06em; }
+  .fev { font:11.5px var(--mono); color:var(--muted); margin-top:7px; }
+
+  /* refusals */
+  .refusal { display:flex; gap:16px; padding:22px 0; border-bottom:1px solid var(--line); }
+  .refusal:last-child { border-bottom:none; }
+  .refusal .no { font:400 30px var(--serif); color:var(--gold); line-height:1; flex:none; width:34px; }
+  .refusal h3 { margin:0 0 6px; font-size:19px; }
+  .refusal p { margin:0; color:var(--muted); font-size:15px; }
+  .refusal .demo { font-family:var(--indic); font-size:22px; color:var(--ink); }
+
+  footer { border-top:1px solid var(--line); padding:40px 0 64px; color:var(--muted); font-size:14px; }
+  footer a { color:var(--ink); }
+  @media (max-width:680px) {
+    .specimen, .tcols { grid-template-columns:1fr; }
+    section { padding:48px 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="bar">
+      <div class="logo"><b>Akshara</b> <span>अक्षर</span></div>
+      <nav class="bar" style="gap:18px">
+        <div class="navlinks">
+          <a href="#checks">Checks</a>
+          <a href="#lab">Try it</a>
+          <a href="#report">Report</a>
+        </div>
+        <button id="themeBtn" type="button">Theme</button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="hero">
+    <p class="eyebrow">Rendering QC for Indic scripts</p>
+    <h1>Your Hindi is <em>clipped</em>. Nobody filed a bug.</h1>
+    <p class="lede">
+      Every Indian consumer app ships Indic text. Almost none tests it, because the people
+      testing read English and these bugs are invisible unless you read the script.
+      Akshara points a headless browser at a page and measures.
+    </p>
+
+    <div class="specimen">
+      <div class="spec bad">
+        <div class="lbl">line-height: 1.0 — shipped</div>
+        <div class="txt" lang="hi">शुभ विवाह की हार्दिक शुभकामनाएँ — आपके नए जीवन के लिए ढेर सारा प्यार</div>
+      </div>
+      <div class="spec good">
+        <div class="lbl">line-height: 1.62 — correct</div>
+        <div class="txt" lang="hi">शुभ विवाह की हार्दिक शुभकामनाएँ — आपके नए जीवन के लिए ढेर सारा प्यार</div>
+      </div>
+    </div>
+    <p class="caption">
+      Same string, same font, same page. Devanagari's shirorekha sits above Latin cap-height and
+      the vowel signs stack higher still — a line-height chosen on English shears the tops off.
+    </p>
+
+    <div class="runner">
+      <div class="field">
+        <input id="url" type="text" value="https://example.in" spellcheck="false" aria-label="URL to scan">
+        <button id="go" type="button">Scan it</button>
+      </div>
+      <pre class="cmd" id="cmd"></pre>
+      <p class="caption" id="runnerNote">
+        Scanning drives a real browser, so it runs on your machine — not in this tab.
+        Node 20+, nothing to sign up for.
+      </p>
+    </div>
+  </div>
+
+  <section id="checks">
+    <p class="eyebrow">What it finds</p>
+    <h2 style="font-size:30px;margin:0 0 10px">Eight ways Indic text breaks</h2>
+    <p class="lede">Ordered by how often they bite in the wild.</p>
+    <div class="grid">
+      <div class="card"><h3>clipping</h3><p>Ink taller than the line box. Measured from the canvas ink extent, compared against Latin in the same font.</p></div>
+      <div class="card"><h3>fallback</h3><p>Your brand font has no Devanagari, so English and Hindi render in different faces at different weights.</p></div>
+      <div class="card"><h3>tofu</h3><p>A missing glyph — usually a webfont subset that dropped the block. Detected by bitmap-matching against .notdef.</p></div>
+      <div class="card"><h3>truncation</h3><p><code>slice(0,20)</code> cuts between a consonant and its vowel sign. <code>.length</code> counts code units; a letter is several.</p></div>
+      <div class="card"><h3>linebreak</h3><p>A cluster split across two DOM nodes by search highlighting. Shaping doesn't cross an element boundary.</p></div>
+      <div class="card"><h3>normalisation</h3><p>क़ exists twice in Unicode. Both render identically and compare as different, so search misses one.</p></div>
+      <div class="card"><h3>numerals</h3><p>Devanagari digits beside ASCII digits in one string.</p></div>
+      <div class="card"><h3>lang</h3><p>No language tag, so a screen reader reads Telugu in an English voice.</p></div>
+    </div>
+  </section>
+
+  <section id="lab">
+    <p class="eyebrow">Try it — live</p>
+    <h2 style="font-size:30px;margin:0 0 10px">Watch the bug happen</h2>
+    <p class="lede">
+      Both of these run the real algorithms, in your browser, right now. The measurements
+      below come from the same Canvas API the scanner uses.
+    </p>
+
+    <div class="lab">
+      <div class="stage" id="lhStage">
+        <p id="lhText" lang="hi">शुभ विवाह की हार्दिक शुभकामनाएँ — आपके नए जीवन के लिए ढेर सारा प्यार</p>
+      </div>
+      <div class="controls">
+        <label for="lh">line-height</label>
+        <input type="range" id="lh" min="90" max="200" value="102">
+        <span style="font:600 14px var(--mono)" id="lhVal">1.02</span>
+      </div>
+      <div class="readout">
+        <div><span>ink height</span> <b id="rInk">—</b></div>
+        <div><span>line box</span> <b id="rBox">—</b></div>
+        <div><span>vs Latin</span> <b id="rLat">—</b></div>
+      </div>
+      <div class="verdict" id="lhVerdict">—</div>
+    </div>
+
+    <div class="lab">
+      <div class="controls" style="margin:0 0 4px">
+        <label for="lim">truncate to</label>
+        <input type="range" id="lim" min="1" max="12" value="4">
+        <span style="font:600 14px var(--mono)"><span id="limVal">4</span> units</span>
+      </div>
+      <div class="tcols">
+        <div class="tcol bad">
+          <div class="lbl">text.slice(0, n)</div>
+          <div class="out" id="tBad" lang="hi"></div>
+          <div class="meta" id="tBadMeta"></div>
+        </div>
+        <div class="tcol good">
+          <div class="lbl">akshara.truncate(text, n)</div>
+          <div class="out" id="tGood" lang="hi"></div>
+          <div class="meta" id="tGoodMeta"></div>
+        </div>
+      </div>
+      <p class="caption" style="margin-top:14px">
+        Drag it. <code>slice</code> counts UTF-16 code units and lands mid-letter — a dangling
+        halant, or a vowel sign decorating nothing. The right column counts aksharas.
+      </p>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">The hard part</p>
+    <h2 style="font-size:30px;margin:0 0 10px">Where does a letter end?</h2>
+    <p class="lede">
+      <code>Intl.Segmenter</code> can't tell you. It implements UAX&nbsp;#29 grapheme clusters,
+      which split क्षि — one letter to anyone who reads it.
+    </p>
+
+    <div class="cluster">
+      <div class="cp"><div class="g" lang="hi">क</div><div class="n">U+0915</div><div class="r">base</div></div>
+      <div class="cp"><div class="g" lang="hi">◌्</div><div class="n">U+094D</div><div class="r">virama</div></div>
+      <div class="cp"><div class="g" lang="hi">ष</div><div class="n">U+0937</div><div class="r">base</div></div>
+      <div class="cp"><div class="g" lang="hi">◌ि</div><div class="n">U+093F</div><div class="r">mark</div></div>
+    </div>
+    <div class="arrowrow">
+      <span class="muted" style="font:13px var(--mono)">4 code points · 6 UTF-16 units · reads as</span>
+      <div class="whole" lang="hi">क्षि</div>
+    </div>
+
+    <p class="lede" style="margin-top:28px">
+      So Akshara segments on the orthographic unit instead — a virama binds forward into the next
+      consonant, every mark binds backward onto the cluster it decorates:
+    </p>
+    <pre class="cmd">akshara := Base Nukta? ( Virama Join? Base Nukta? )* Mark*</pre>
+    <p class="caption">
+      The trap that catches naive implementations: every virama carries
+      <code>General_Category=Mn</code>, so testing “is this a combining mark” before “is this a
+      virama” swallows the one character that binds the conjunct — and every cluster silently
+      splits in two.
+    </p>
+  </section>
+
+  <section id="report">
+    <p class="eyebrow">The output</p>
+    <h2 style="font-size:30px;margin:0 0 10px">Every finding shows its working</h2>
+    <p class="lede">
+      Real output, from the torture fixture in the repo. Numbers included so you can check the
+      call rather than take it on faith.
+    </p>
+    <div class="report" id="reportEl"></div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Restraint</p>
+    <h2 style="font-size:30px;margin:0 0 10px">Two things it refuses to report</h2>
+    <p class="lede">A linter is only as useful as the false positives it doesn't produce.</p>
+
+    <div class="refusal">
+      <div class="no">01</div>
+      <div>
+        <h3>Word-final viramas in Tamil and Malayalam</h3>
+        <p>
+          <span class="demo" lang="ta">வணக்கம்</span> and <span class="demo" lang="ta">தமிழ்</span>
+          both end on a bare pulli. That is how the language is spelled. A checker that calls a
+          trailing virama “truncation” condemns two entire languages, so the rule is per-script —
+          flagged in Devanagari and Telugu, silent in Tamil, Malayalam and Sinhala.
+        </p>
+      </div>
+    </div>
+
+    <div class="refusal">
+      <div class="no">02</div>
+      <div>
+        <h3>Line breaks splitting a cluster</h3>
+        <p>
+          Chrome's line breaker turns out to be shaping-aware: it wraps between letters and will
+          not split an akshara even under <code>word-break: break-all</code>. Measured, not
+          assumed. Shipping a check that can never fire would be dishonest, so
+          <code>linebreak</code> looks for clusters divided across DOM nodes instead — search-term
+          highlighting, or <code>{t.slice(0,3)}&lt;b&gt;{t.slice(3)}&lt;/b&gt;</code> — which is
+          real, because shaping doesn't cross an element boundary.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="eyebrow">Install</p>
+    <h2 style="font-size:30px;margin:0 0 10px">Two lines</h2>
+    <pre class="cmd"><span class="c"># scan a page</span>
+npx akshara https://example.in --screenshot findings.png
+
+<span class="c"># or fix the string bug at the source — no browser needed</span>
+import { truncate, aksharaLength } from "akshara";
+
+truncate("नमस्ते दोस्तों", 3);  <span class="c">// "नमस्ते…"   never a dangling halant</span>
+"नमस्ते".slice(0, 4);           <span class="c">// "नमस्"     half a letter</span>
+aksharaLength("नमस्ते");        <span class="c">// 3          "नमस्ते".length is 6</span></pre>
+    <p class="caption">
+      Exit code is non-zero when anything at or above <code>--fail-on</code> is found, so it drops
+      straight into CI.
+    </p>
+  </section>
+
+  <footer>
+    <p>
+      MIT licensed · <a href="https://github.com/muralikrishnadogiparthi13/akshara">Source on GitHub</a>
+    </p>
+    <p style="margin-top:8px">
+      Ten scripts: Devanagari, Bengali, Gurmukhi, Gujarati, Odia, Tamil, Telugu, Kannada,
+      Malayalam, Sinhala.
+    </p>
+  </footer>
+</div>
+
+<script>
+/* ---------------------------------------------------------------------------
+   The segmenter, mirrored from src/scripts/segment.ts so the demos below run
+   the real rule rather than a plausible-looking imitation. Keep the two in
+   step — the ordering of the virama test in particular.
+--------------------------------------------------------------------------- */
+const VIRAMA = new Set([0x094D,0x09CD,0x0A4D,0x0ACD,0x0B4D,0x0BCD,0x0C4D,0x0CCD,0x0D4D,0x0DCA]);
+const MARK_RE = /\p{Mn}|\p{Mc}/u;
+const inIndic  = cp => cp >= 0x0900 && cp <= 0x0DFF;
+const isMark   = cp => MARK_RE.test(String.fromCodePoint(cp));
+const isVirama = cp => VIRAMA.has(cp);
+const isJoin   = cp => cp === 0x200C || cp === 0x200D;
+const isBase   = cp => inIndic(cp) && !isMark(cp) && !isVirama(cp);
+
+function segment(text) {
+  const cps = [...text], off = []; let o = 0;
+  for (const c of cps) { off.push(o); o += c.length; } off.push(o);
+  const out = []; let i = 0;
+  while (i < cps.length) {
+    const cp = cps[i].codePointAt(0), start = i;
+    let broken = false, openVirama = false;
+    if (!inIndic(cp)) { i++; }
+    else if (isMark(cp) || isVirama(cp)) {
+      broken = true;
+      while (i < cps.length && (isMark(cps[i].codePointAt(0)) || isVirama(cps[i].codePointAt(0)) || isJoin(cps[i].codePointAt(0)))) i++;
+    } else {
+      i++;
+      for (;;) {
+        if (i >= cps.length) break;
+        const n = cps[i].codePointAt(0);
+        if (isVirama(n)) {                       // before isMark — viramas are Mn
+          i++;
+          while (i < cps.length && isJoin(cps[i].codePointAt(0))) i++;
+          if (i < cps.length && isBase(cps[i].codePointAt(0))) { i++; continue; }
+          openVirama = true; break;
+        }
+        if (isMark(n) || isJoin(n)) { i++; continue; }
+        break;
+      }
+    }
+    out.push({ text: text.slice(off[start], off[i]), start: off[start], end: off[i], broken, openVirama });
+  }
+  return out;
+}
+const truncateAkshara = (t, n, e="…") => {
+  const s = segment(t);
+  if (s.length <= n) return t;
+  return t.slice(0, n > 0 ? s[n-1].end : 0) + e;
+};
+
+/* --- theme ------------------------------------------------------------- */
+document.getElementById("themeBtn").addEventListener("click", () => {
+  const cur = document.documentElement.getAttribute("data-theme")
+    || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+  document.documentElement.setAttribute("data-theme", cur === "dark" ? "light" : "dark");
+  measure();
+});
+
+/* --- command generator -------------------------------------------------- */
+const urlEl = document.getElementById("url"), cmdEl = document.getElementById("cmd");
+function renderCmd() {
+  const u = (urlEl.value || "https://example.in").trim();
+  cmdEl.innerHTML =
+    '<span class="c"># one-off, nothing installed</span>\n' +
+    'npx akshara ' + u.replace(/[<>&]/g, "") + ' --screenshot findings.png';
+}
+urlEl.addEventListener("input", renderCmd);
+document.getElementById("go").addEventListener("click", () => {
+  renderCmd();
+  navigator.clipboard?.writeText(cmdEl.textContent.split("\n")[1] || "").then(() => {
+    const n = document.getElementById("runnerNote");
+    const old = n.textContent;
+    n.textContent = "Copied. Paste it into a terminal — it runs a real browser, which this tab cannot.";
+    setTimeout(() => { n.textContent = old; }, 2600);
+  }, () => {});
+});
+renderCmd();
+
+/* --- lab 1: line-height, measured the way the scanner measures ----------- */
+const lh = document.getElementById("lh"), lhText = document.getElementById("lhText"),
+      lhStage = document.getElementById("lhStage"), ctx = document.createElement("canvas").getContext("2d");
+
+function measure() {
+  const ratio = lh.value / 100;
+  lhText.style.lineHeight = ratio;
+  document.getElementById("lhVal").textContent = ratio.toFixed(2);
+
+  const cs = getComputedStyle(lhText);
+  const size = parseFloat(cs.fontSize);
+  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${size}px ${cs.fontFamily}`;
+  const m = ctx.measureText(lhText.textContent);
+  const ink = (m.actualBoundingBoxAscent || 0) + (m.actualBoundingBoxDescent || 0);
+  const lat = ctx.measureText("Hxdpqg");
+  const latIn = (lat.actualBoundingBoxAscent || 0) + (lat.actualBoundingBoxDescent || 0);
+  const box = size * ratio;
+
+  document.getElementById("rInk").textContent = ink.toFixed(1) + "px";
+  document.getElementById("rBox").textContent = box.toFixed(1) + "px";
+  document.getElementById("rLat").textContent = latIn ? (ink / latIn).toFixed(2) + "×" : "—";
+
+  const clipping = ink > box * 1.02;
+  lhStage.classList.toggle("clip", clipping);
+  const v = document.getElementById("lhVerdict");
+  v.className = "verdict " + (clipping ? "bad" : "good");
+  v.textContent = clipping
+    ? `error — glyphs are ${(ink - box).toFixed(1)}px taller than the line box`
+    : `ok — fits, with ${(box - ink).toFixed(1)}px to spare`;
+}
+lh.addEventListener("input", measure);
+
+/* --- lab 2: truncation --------------------------------------------------- */
+const SRC = "नमस्ते दोस्तों";
+const lim = document.getElementById("lim");
+function renderTrunc() {
+  const n = +lim.value;
+  document.getElementById("limVal").textContent = n;
+
+  const naive = SRC.slice(0, n) + "…";
+  const good  = truncateAkshara(SRC, n);
+  document.getElementById("tBad").textContent = naive;
+  document.getElementById("tGood").textContent = good;
+
+  const damaged = segment(naive).some(s => s.broken || s.openVirama);
+  document.getElementById("tBadMeta").innerHTML = damaged
+    ? '<span style="color:var(--err)">broken — cut inside a letter</span>'
+    : 'intact by luck at this length';
+  document.getElementById("tGoodMeta").textContent =
+    segment(good).length - 1 + " aksharas kept";
+}
+lim.addEventListener("input", renderTrunc);
+
+/* --- report: real findings from fixtures/torture.html -------------------- */
+const FINDINGS = [
+  { check:"clipping", severity:"error", title:"Glyphs are 2.9px taller than the line box",
+    text:"शुभ विवाह की हार्दिक शुभकामनाएँ",
+    fix:"Raise line-height to at least 1.18 for this script — Indic needs roughly 1.5–1.7 where Latin is happy at 1.2.",
+    ev:"inkHeight 26.0px · lineBox 23.1px · fontSize 22px · 1.31× Latin · overflow hidden" },
+  { check:"truncation", severity:"error", title:"Cut mid-letter, then given an ellipsis",
+    text:"नमस्…",
+    fix:"Truncate on akshara boundaries. text.slice(0, n) cannot do this correctly.",
+    ev:"fragment स् · endsWithEllipsis true" },
+  { check:"truncation", severity:"error", title:"A vowel sign with nothing to attach to",
+    text:"ेलुगु",
+    fix:"Count in aksharas, not code units: akshara.truncate(text, limit).",
+    ev:"fragment े · offset 0" },
+  { check:"linebreak", severity:"error", title:"Markup cuts through the middle of a letter",
+    text:"सं…ति क्ष…त्र",
+    fix:"Split on akshara boundaries before wrapping either half in an element.",
+    ev:"clusters क्षे" },
+  { check:"fallback", severity:"warning", title:"Falls back to serif — your English is in LatinOnly",
+    text:"Wedding · विवाह",
+    fix:"Pick an Indic companion face with matching weight and x-height.",
+    ev:"requested LatinOnly · resolved serif" },
+  { check:"normalisation", severity:"warning", title:"Uses deprecated precomposed character क़",
+    text:"क़िला — २० November 2026",
+    fix:"Normalise to NFD then NFC at your API and database boundaries.",
+    ev:"characters क़ (U+0958)" },
+  { check:"numerals", severity:"info", title:"Two numeral systems in one string",
+    text:"क़िला — २० November 2026",
+    fix:"Choose a numeral system per locale and normalise at render time.", ev:"" },
+];
+const esc = s => s.replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+document.getElementById("reportEl").innerHTML =
+  `<div class="rhead">
+     <span class="u">akshara ./fixtures/torture.html</span>
+     <span class="pills">
+       <span class="pill e">4 errors</span>
+       <span class="pill w">2 warnings</span>
+       <span class="pill i">1 info</span>
+     </span>
+   </div>` +
+  FINDINGS.map(f => `
+    <div class="finding">
+      <div class="sev ${f.severity}"></div>
+      <div class="fbody">
+        <div class="fmeta">${f.check} · ${f.severity}</div>
+        <p class="ftitle">${esc(f.title)}</p>
+        <div class="fsample" lang="hi">${esc(f.text)}</div>
+        <div class="ffix"><b>fix</b> ${esc(f.fix)}</div>
+        ${f.ev ? `<div class="fev">${esc(f.ev)}</div>` : ""}
+      </div>
+    </div>`).join("");
+
+measure();
+renderTrunc();
+</script>
+</body>
+</html>
