@@ -2,6 +2,8 @@
 
 **Find broken Indic text rendering before your users do.**
 
+[**Live demo and write-up →**](https://muralikrishnadogiparthi13.github.io/akshara/)
+
 Point it at a page. It reports where your Hindi, Telugu, Tamil, Kannada, Bengali or Marathi text is clipped, tofu'd, silently rendered in the wrong font, or cut in half.
 
 ```bash
