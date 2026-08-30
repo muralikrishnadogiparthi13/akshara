@@ -70,8 +70,20 @@ export async function scan(url: string, opts: ScanOptions = {}): Promise<ScanRes
       segment(text).map((s) => [s.start, s.end] as [number, number]),
     );
 
-    await page.goto(url, { waitUntil: "networkidle", timeout: o.timeoutMs });
-    await page.evaluate(() => document.fonts.ready);
+    /* Wait strategy.
+     *
+     * "networkidle" is the obvious choice and the wrong one: an ad-funded news
+     * site never goes idle — beacons, lazy images and polling keep the network
+     * busy indefinitely — so it times out and the scan returns nothing. Six of
+     * the first seventeen sites tried failed exactly this way.
+     *
+     * So: commit on DOM ready, then give "load" and the font set a bounded
+     * chance to arrive, then settle. Each wait can expire without failing the
+     * scan; a page that is merely still fetching adverts is perfectly
+     * measurable. */
+    await page.goto(url, { waitUntil: "domcontentloaded", timeout: o.timeoutMs });
+    await page.waitForLoadState("load", { timeout: 8_000 }).catch(() => {});
+    await page.evaluate(() => document.fonts.ready).catch(() => {});
     await page.waitForTimeout(o.settleMs);
 
     const probe = await page.evaluate(probePage);
