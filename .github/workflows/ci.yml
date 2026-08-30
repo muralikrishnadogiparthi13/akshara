@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      # The torture fixture must keep producing exactly the bugs it stages.
+      # Fonts differ on CI, so assert on the script-level findings, which do not.
+      - run: node dist/cli.js ./fixtures/torture.html --json out.json --fail-on never --quiet
+      - name: Torture fixture still detects its staged bugs
+        run: |
+          node -e '
+            const r = require("./out.json");
+            const have = new Set(r.findings.map(f => f.check));
+            const need = ["truncation", "linebreak", "normalisation"];
+            const missing = need.filter(c => !have.has(c));
+            if (missing.length) {
+              console.error("Fixture no longer detects:", missing.join(", "));
+              console.error("Found:", [...have].join(", ") || "nothing");
+              process.exit(1);
+            }
+            const trunc = r.findings.filter(f => f.check === "truncation" && f.severity === "error");
+            if (trunc.length < 2) { console.error("Expected both truncation shapes"); process.exit(1); }
+            console.log("ok —", r.findings.length, "findings:", [...have].join(", "));
+          '

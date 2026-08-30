@@ -1,0 +1,182 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Akshara torture test</title>
+<style>
+  :root { --line: #e6e1d8; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 24px 16px 64px;
+    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: #fdfbf7; color: #1c1a17;
+  }
+  h1 { font-size: 20px; margin: 0 0 4px; }
+  .sub { color: #6b645b; font-size: 13px; margin: 0 0 28px; }
+  section { border-top: 1px solid var(--line); padding: 18px 0 4px; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .08em;
+       color: #8a8177; margin: 0 0 10px; font-weight: 700; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .cell { min-width: 0; }
+  .tag { font: 600 10px/1.8 ui-monospace, "Kohinoor Devanagari", "Nirmala UI", monospace;
+         letter-spacing: .06em; text-transform: uppercase; margin-bottom: 6px; }
+  .bad .tag { color: #c0393e; }
+  .good .tag { color: #2f7a4d; }
+  .box { border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; background: #fff; }
+  .note { font-size: 12px; line-height: 1.9; color: #6b645b; margin-top: 8px;
+          font-family: system-ui, "Kohinoor Devanagari", "Nirmala UI", sans-serif; }
+
+  /* ---- 1. clipping: line-height tuned on Latin ---- */
+  .clip-bad  { font-size: 22px; line-height: 1.05; overflow: hidden; height: 2.1em; }
+  .clip-good { font-size: 22px; line-height: 1.65; }
+
+  /* ---- 2. fallback: a Latin-only webfont ---- */
+  @font-face {
+    font-family: "LatinOnly";
+    /* A real subset in the wild covers Latin only; this one covers nothing but
+       ASCII, so Indic text falls through to whatever the device has. */
+    src: local("Georgia"), local("Times New Roman");
+    unicode-range: U+0000-00FF;
+  }
+  .fallback-bad  { font-family: "LatinOnly", serif; font-size: 20px; line-height: 1.6; }
+  .fallback-good { font-family: sans-serif; font-size: 20px; line-height: 1.6; }
+
+  /* ---- 3. line break inside a cluster ---- */
+  .break-bad  { font-size: 19px; line-height: 1.7; }
+  .break-good { font-size: 19px; line-height: 1.7; }
+  mark { background: #ffe9a8; color: inherit; }
+
+  /* ---- 4. truncation done in JS ---- */
+  .trunc { font-size: 19px; line-height: 1.7; }
+
+  /* ---- 6. fixed-width control ---- */
+  .btn { display: inline-block; width: 132px; padding: 9px 0; text-align: center;
+         border-radius: 999px; background: #1c1a17; color: #fff; font-size: 14px;
+         white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+</style>
+</head>
+<body>
+
+<h1>Akshara torture test</h1>
+<p class="sub">Every bug the scanner looks for, reproduced deliberately. Left is broken, right is correct.</p>
+
+<section>
+  <h2>1 · Vertical clipping</h2>
+  <div class="pair">
+    <div class="cell bad">
+      <div class="tag" lang="en">line-height: 1.05</div>
+      <div class="box clip-bad" lang="hi">शुभ विवाह की हार्दिक शुभकामनाएँ</div>
+    </div>
+    <div class="cell good">
+      <div class="tag" lang="en">line-height: 1.65</div>
+      <div class="box clip-good" lang="hi">शुभ विवाह की हार्दिक शुभकामनाएँ</div>
+    </div>
+  </div>
+  <p class="note">Devanagari's shirorekha sits above Latin cap-height and the vowel signs stack above that. A line-height chosen for English shears the tops off.</p>
+</section>
+
+<section>
+  <h2>2 · Font fallback</h2>
+  <div class="pair">
+    <div class="cell bad">
+      <div class="tag" lang="en">Latin-only webfont</div>
+      <div class="box fallback-bad" lang="hi">Wedding · विवाह</div>
+    </div>
+    <div class="cell good">
+      <div class="tag" lang="en">a stack that covers the script</div>
+      <div class="box fallback-good" lang="hi">Wedding · विवाह</div>
+    </div>
+  </div>
+  <p class="note">The English renders in the brand face and the Hindi in whatever the phone has. Different weight, different x-height, same sentence.</p>
+</section>
+
+<section>
+  <h2>3 · Markup cutting through a letter</h2>
+  <div class="pair">
+    <div class="cell bad">
+      <div class="tag" lang="en">highlight splits the cluster</div>
+      <div class="box break-bad" lang="hi">सं<mark>स्कृ</mark>ति क्ष<mark>े</mark>त्र</div>
+    </div>
+    <div class="cell good">
+      <div class="tag" lang="en">highlight respects the boundary</div>
+      <div class="box break-good" lang="hi"><mark>संस्कृति</mark> क्षेत्र</div>
+    </div>
+  </div>
+  <p class="note" lang="en">Shaping does not cross an element boundary. Chrome’s line breaker will never split an akshara — measured, not assumed — but a &lt;mark&gt; landing mid-cluster stops the conjunct forming.</p>
+</section>
+
+<section>
+  <h2>4 · Truncation at a UTF-16 index</h2>
+  <div class="pair">
+    <div class="cell bad">
+      <div class="tag" lang="en">"नमस्ते दोस्तों".slice(0, 4)</div>
+      <div class="box trunc" lang="hi">नमस्…</div>
+    </div>
+    <div class="cell good">
+      <div class="tag" lang="en">truncated on akshara boundaries</div>
+      <div class="box trunc" lang="hi">नमस्ते…</div>
+    </div>
+  </div>
+  <p class="note">The cut lands after the halant, leaving half a consonant with a visible killer stroke.</p>
+</section>
+
+<section>
+  <h2>5 · An orphaned vowel sign</h2>
+  <div class="pair">
+    <div class="cell bad">
+      <div class="tag" lang="en">cut before the matra</div>
+      <div class="box trunc" lang="hi">ेलुगु</div>
+    </div>
+    <div class="cell good">
+      <div class="tag" lang="en">whole word</div>
+      <div class="box trunc" lang="te">తెలుగు</div>
+    </div>
+  </div>
+  <p class="note">A vowel sign decorating empty space. Damage in every Brahmic script, without exception.</p>
+</section>
+
+<section>
+  <h2>6 · Fixed-width controls</h2>
+  <div class="pair">
+    <div class="cell bad">
+      <div class="tag" lang="en">width sized on "Continue"</div>
+      <div class="btn" lang="te">కొనసాగించండి</div>
+    </div>
+    <div class="cell good">
+      <div class="tag" lang="en">intrinsic width</div>
+      <div class="btn" style="width:auto;padding:9px 18px" lang="te">కొనసాగించండి</div>
+    </div>
+  </div>
+  <p class="note">Indic translations run 15–30% longer than English. A button that fits "Continue" does not fit this.</p>
+</section>
+
+<section>
+  <h2>7 · Deprecated encodings and numerals</h2>
+  <div class="pair">
+    <div class="cell bad">
+      <div class="tag" lang="en">U+0958 + mixed digits</div>
+      <!-- U+0958: the deprecated precomposed form, plus mixed numerals -->
+      <div class="box trunc" lang="hi">&#x0958;&#x093F;&#x0932;&#x093E; — २० November 2026</div>
+    </div>
+    <div class="cell good">
+      <div class="tag" lang="en">canonical + one numeral system</div>
+      <div class="box trunc" lang="hi">&#x0915;&#x093C;&#x093F;&#x0932;&#x093E; — 20 November 2026</div>
+    </div>
+  </div>
+  <p class="note">क़ exists twice in Unicode. Both cells render identically and compare as different bytes, so search misses one and deduplication keeps both.</p>
+</section>
+
+<section>
+  <h2>8 · Correct by construction</h2>
+  <div class="box" style="line-height:1.7;font-size:19px">
+    <div lang="ta">வணக்கம், தமிழ்</div>
+    <div lang="ml">നമസ്കാരം, മലയാളം</div>
+    <div lang="kn">ನಮಸ್ಕಾರ, ಕನ್ನಡ</div>
+    <div lang="bn">নমস্কার, বাংলা</div>
+  </div>
+  <p class="note">Tamil and Malayalam end words on a bare pulli or chandrakkala. A scanner that calls this truncation condemns two entire languages — nothing in this block should be reported.</p>
+</section>
+
+</body>
+</html>

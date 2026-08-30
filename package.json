@@ -1,0 +1,57 @@
+{
+  "name": "akshara",
+  "version": "0.1.0",
+  "description": "Find broken Indic text rendering on the web — clipped ascenders, tofu, font fallback, mid-cluster truncation and line breaks inside a syllable.",
+  "keywords": [
+    "indic",
+    "devanagari",
+    "telugu",
+    "tamil",
+    "kannada",
+    "i18n",
+    "accessibility",
+    "typography",
+    "grapheme",
+    "akshara",
+    "testing"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "akshara": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "scan": "node --experimental-strip-types src/cli.ts",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "playwright-core": "^1.49.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "playwright": "^1.49.0",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
