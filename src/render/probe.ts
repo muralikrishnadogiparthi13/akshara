@@ -124,13 +124,34 @@ export async function probePage(): Promise<ProbeResult> {
    * Measure it against two very different fallbacks. If the width matches both,
    * the requested family contributed nothing and the browser fell back.
    */
+  // Generic keywords must never be quoted: `font: 36px "sans-serif"` asks for a
+  // font literally named "sans-serif", finds nothing, and silently falls back —
+  // which made every site whose stack ends in sans-serif look broken.
+  const GENERIC = new Set([
+    "serif", "sans-serif", "monospace", "cursive", "fantasy", "system-ui",
+    "ui-serif", "ui-sans-serif", "ui-monospace", "ui-rounded", "math", "emoji", "fangsong",
+  ]);
+
+  const asStack = (family: string): string => {
+    const bare = family.replace(/^["']|["']$/g, "");
+    return GENERIC.has(bare.toLowerCase()) ? bare : `"${bare}"`;
+  };
+
   const covers = (family: string, text: string): boolean => {
     const probe = (stack: string) => {
       ctx.font = `36px ${stack}`;
       return ctx.measureText(text).width;
     };
-    const q = `"${family.replace(/^["']|["']$/g, "")}"`;
-    return probe(`${q}, monospace`) !== probe("monospace") ||
+    const q = asStack(family);
+    // A generic keyword always resolves to something that renders; asking
+    // whether it "covers" the text the same way is meaningless.
+    if (GENERIC.has(q.toLowerCase())) return true;
+    // Must differ from BOTH sentinels. Chrome's per-script fallback does not
+    // resolve to the last generic in the stack — it picks a system font for the
+    // script — so `"LatinOnly", monospace` and bare `monospace` can differ while
+    // neither is actually LatinOnly. Matching either sentinel means the family
+    // contributed nothing and something else drew the text.
+    return probe(`${q}, monospace`) !== probe("monospace") &&
       probe(`${q}, serif`) !== probe("serif");
   };
 
@@ -203,9 +224,13 @@ export async function probePage(): Promise<ProbeResult> {
 
     const stack = families(cs.fontFamily);
     const requestedFamily = stack[0] ?? "";
+    // Test coverage against the Indic characters ONLY. "Wedding · विवाह" in a
+    // Latin-only webfont looks covered if you measure the whole string, because
+    // the font really does render "Wedding" — which is precisely the bug.
+    const indicOnly = [...text].filter((ch) => INDIC.test(ch)).join("");
     let resolvedFamily: string | null = null;
     for (const f of stack) {
-      if (covers(f, text)) {
+      if (covers(f, indicOnly)) {
         resolvedFamily = f;
         break;
       }
