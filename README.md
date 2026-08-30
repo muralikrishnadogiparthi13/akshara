@@ -23,6 +23,15 @@ npx akshara-qc https://example.in
 
 ---
 
+## Measured in the wild
+
+Twenty Indian sites with Indic text, scanned 31 Aug 2026: **17 raised at least one error or
+warning.** Font fallback on 10 of 20 (269 elements), non-canonical encoding on 10 of 20,
+clipping on 8 of 20. Clean: mathrubhumi.com, hindutamil.in, maalaimalar.com.
+
+The audit found three defects in the scanner first — including 141 truncation findings that
+were correctly spelled Telugu and Hindi words. Method, numbers and caveats: [AUDIT.md](AUDIT.md).
+
 ## Why this exists
 
 Every Indian consumer app ships Indic text. Almost none test it, because the people doing the testing read English and these bugs are invisible unless you read the script. A clipped shirorekha looks like "the font is a bit odd". A fallback font looks like "the design is a bit cheap". Nobody files those bugs, and everybody sees them.

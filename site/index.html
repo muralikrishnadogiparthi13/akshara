@@ -386,7 +386,34 @@
   </p>
   <div class="report" id="reportEl"></div>
 
-  <h2><span class="num">07</span>What it will not report</h2>
+  <h2><span class="num">07</span>Twenty Indian sites, measured</h2>
+  <p>
+    Run against 23 URLs — national and regional news, plus Wikipedia in three scripts as a
+    control. Twenty had Indic text on the page scanned. <strong>Seventeen of those twenty
+    raised at least one error or warning.</strong>
+  </p>
+  <dl class="checks">
+    <div><dt>fallback</dt><dd>10 of 20 sites · 269 elements. A stack with no Indic face in it, so the browser substitutes silently. One site's single <code>Arial, sans-serif</code> meant 220 elements of Hindi rendered in whatever the device happened to have.</dd></div>
+    <div><dt>normalisation</dt><dd>10 of 20 · 39 elements. Text not in canonical form: 27 deprecated precomposed characters, 12 strings not in NFC. Renders identically, compares as different.</dd></div>
+    <div><dt>clipping</dt><dd>8 of 20 · 85 elements. Worst overrun 3.9px.</dd></div>
+    <div><dt>overflow</dt><dd>5 of 20 · 75 elements. Worst case a control 155px too narrow, cut with no ellipsis.</dd></div>
+    <div><dt>truncation</dt><dd>5 of 20 · 8 elements.</dd></div>
+    <div><dt>tofu</dt><dd>None — but see the caveat, this is the least trustworthy number here.</dd></div>
+  </dl>
+  <p>
+    Three sites came back with nothing above a note, and they are worth naming because the
+    failures are not: <strong>mathrubhumi.com</strong>, <strong>hindutamil.in</strong> and
+    <strong>maalaimalar.com</strong>.
+  </p>
+  <p class="soft" style="font-size:.9rem">
+    The audit found more defects in the scanner than classes of defect on the web — a wait
+    strategy that could not load a quarter of the sample, a clipping check fooled by
+    <code>line-height: 0</code>, and 141 truncation findings that turned out to be correctly
+    spelled Telugu and Hindi. All three are written up, with the numbers and the caveats, in
+    <a href="https://github.com/muralikrishnadogiparthi13/akshara/blob/main/AUDIT.md">AUDIT.md</a>.
+  </p>
+
+  <h2><span class="num">08</span>What it will not report</h2>
   <p>
     A linter is worth only as much as the false positives it declines to raise.
   </p>
@@ -412,7 +439,7 @@
     </p>
   </div>
 
-  <h2><span class="num">08</span>Installing</h2>
+  <h2><span class="num">09</span>Installing</h2>
 <pre><span class="c">// scan a page</span>
 npx akshara-qc https://example.in --screenshot findings.png
 
