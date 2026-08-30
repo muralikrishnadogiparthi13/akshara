@@ -40,6 +40,22 @@ Every Indian consumer app ships Indic text. Almost none test it, because the peo
 | **numerals** | Devanagari digits beside ASCII digits in one string. |
 | **lang** | No language tag, so the browser guesses the font and a screen reader reads Telugu in an English voice. |
 
+## The bookmarklet
+
+Drag one link to your bookmarks bar and the full scan runs on whatever page you are looking
+at — no terminal, no install, nothing sent anywhere. Grab it from the
+[live page](https://muralikrishnadogiparthi13.github.io/akshara/).
+
+It works because it is not cross-origin. A bookmarklet is first-party script in a document
+you have already loaded, so it reads that page's DOM, computed styles and font metrics the
+way the site's own code would — including pages behind a login, which a scanner can never
+reach. It ships as a single inline `javascript:` URL rather than injecting a `<script src>`,
+because `script-src` would block the latter on exactly the sites worth auditing. The UI
+lives in a shadow root so the host page's CSS cannot reach it.
+
+Source: [`site/bookmarklet.src.js`](site/bookmarklet.src.js), built by
+`node scripts/build-bookmarklet.mjs`.
+
 ## Install
 
 ```bash
