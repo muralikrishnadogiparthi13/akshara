@@ -1,8 +1,27 @@
-import { chromium, type Browser, type Page } from "playwright";
 import { segment } from "../scripts/segment.js";
 import { checkText } from "../checks/static.js";
 import { sortFindings, type Finding, type ScanResult } from "../checks/types.js";
 import { probePage, type ProbeNode } from "./probe.js";
+
+// Types only — the value import is deferred so `import { truncate } from
+// "akshara-qc"` never pulls a browser in.
+import type { Browser, Page } from "playwright";
+
+/**
+ * Playwright is loaded on first scan, not at import time. The string-level API
+ * is pure and should stay usable in a bundle, an edge function, or anywhere a
+ * 130MB browser has no business being.
+ */
+async function launchChromium() {
+  try {
+    const { chromium } = await import("playwright");
+    return chromium;
+  } catch {
+    throw new Error(
+      "scan() needs Playwright. Install it with: npm i playwright && npx playwright install chromium",
+    );
+  }
+}
 
 export interface ScanOptions {
   /** Viewport. Defaults to a mid-range Android, where these bugs bite hardest. */
@@ -37,6 +56,7 @@ export async function scan(url: string, opts: ScanOptions = {}): Promise<ScanRes
   let browser: Browser | undefined;
 
   try {
+    const chromium = await launchChromium();
     browser = await chromium.launch();
     const context = await browser.newContext({
       viewport: { width: o.width, height: o.height },

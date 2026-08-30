@@ -1,6 +1,6 @@
 {
   "name": "akshara-qc",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Find broken Indic text rendering on the web \u2014 clipped ascenders, tofu, font fallback, mid-cluster truncation and line breaks inside a syllable.",
   "keywords": [
     "indic",
@@ -46,11 +46,10 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "playwright-core": "^1.49.0"
+    "playwright": "^1.49.0"
   },
   "devDependencies": {
     "@types/node": "^22.10.1",
-    "playwright": "^1.49.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
   },
