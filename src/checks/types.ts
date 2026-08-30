@@ -8,6 +8,7 @@ export type CheckId =
   | "linebreak"
   | "normalisation"
   | "numerals"
+  | "overflow"
   | "lang";
 
 export interface Finding {

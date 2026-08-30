@@ -114,6 +114,9 @@ function groupKey(f: Finding, n: ProbeNode): string {
       return `tofu|${n.fontFamily}|${n.tofu.join("")}`;
     case "lang":
       return "lang";
+    case "overflow":
+      // One undersized component, however many instances of it are on screen.
+      return `overflow|${n.fontFamily}|${Math.round(n.fontSizePx)}|${f.selector?.split(">").pop()?.trim() ?? ""}`;
     default:
       // truncation, normalisation, numerals, linebreak — one per damaged string.
       return `${f.check}|${f.selector ?? ""}|${f.text}`;
@@ -252,16 +255,25 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
       }, n);
     }
 
-    if (n.ellipsis && n.overflowing) {
+    if (n.clipsHorizontally && n.overflowPx > 1) {
       add({
-        check: "truncation",
-        severity: "info",
-        title: "Text is being ellipsised by CSS",
+        check: "overflow",
+        severity: n.isControl ? "warning" : "info",
+        title: `Label needs ${Math.round(n.overflowPx)}px more room than it has`,
         detail:
-          "The browser's own ellipsis is shaping-aware, so this is probably fine — but check the " +
-          "same string is not also cut in JavaScript before it gets here, which is where the " +
-          "mid-letter breaks come from.",
+          `The text overruns its box by ${Math.round(n.overflowPx)}px and the box clips, so part ` +
+          `of it is not readable. Indic translations run roughly 15–30% longer than the English ` +
+          `they were sized against, which is why a control that fits "Continue" does not fit ` +
+          `कॉन्टिन्यू or కొనసాగించండి.` +
+          (n.ellipsis
+            ? " The browser's own ellipsis is shaping-aware, so at least the cut itself is clean."
+            : " There is no ellipsis, so the text simply stops."),
         text: n.text,
+        fix: "Let the control size to its content, or set the width from the longest translation rather than the English.",
+        evidence: {
+          overflowPx: Math.round(n.overflowPx),
+          ellipsis: n.ellipsis,
+        },
         ...where,
       }, n);
     }

@@ -34,6 +34,12 @@ export interface ProbeNode {
   overflowHidden: boolean;
   ellipsis: boolean;
   overflowing: boolean;
+  /** Horizontal pixels the text needs beyond the box it is given. */
+  overflowPx: number;
+  /** The box actually clips horizontally, so the overflow is not just scrollable. */
+  clipsHorizontally: boolean;
+  /** A control whose width was almost certainly sized against English. */
+  isControl: boolean;
   lang: string;
 }
 
@@ -297,6 +303,15 @@ export async function probePage(): Promise<ProbeResult> {
       overflowHidden: cs.overflow === "hidden" || cs.overflowX === "hidden",
       ellipsis: cs.textOverflow === "ellipsis",
       overflowing: el.scrollWidth > el.clientWidth + 1,
+      overflowPx: Math.max(0, el.scrollWidth - el.clientWidth),
+      clipsHorizontally:
+        cs.textOverflow === "ellipsis" ||
+        ((cs.overflow === "hidden" || cs.overflowX === "hidden") && cs.whiteSpace === "nowrap"),
+      isControl:
+        /^(BUTTON|A|LABEL|SUMMARY)$/.test(el.nodeName) ||
+        el.getAttribute("role") === "button" ||
+        el.getAttribute("role") === "tab" ||
+        cs.whiteSpace === "nowrap",
       lang: el.closest("[lang]")?.getAttribute("lang") ?? "",
     });
   }

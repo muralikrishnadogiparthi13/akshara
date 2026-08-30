@@ -51,9 +51,13 @@
   .trunc { font-size: 19px; line-height: 1.7; }
 
   /* ---- 6. fixed-width control ---- */
-  .btn { display: inline-block; width: 132px; padding: 9px 0; text-align: center;
+  .btn { display: inline-block; width: 84px; padding: 9px 0; text-align: center;
          border-radius: 999px; background: #1c1a17; color: #fff; font-size: 14px;
          white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .btn.auto { width: auto; padding: 9px 18px; }
+  .en { display:inline-block; width: 84px; padding: 9px 0; text-align:center;
+        border-radius: 999px; background:#e9e5dc; color:#1c1a17; font-size:14px;
+        white-space:nowrap; margin-bottom:8px; }
 </style>
 </head>
 <body>
@@ -141,11 +145,13 @@
   <div class="pair">
     <div class="cell bad">
       <div class="tag" lang="en">width sized on "Continue"</div>
+      <div class="en" lang="en">Continue</div>
       <div class="btn" lang="te">కొనసాగించండి</div>
     </div>
     <div class="cell good">
       <div class="tag" lang="en">intrinsic width</div>
-      <div class="btn" style="width:auto;padding:9px 18px" lang="te">కొనసాగించండి</div>
+      <div class="en" lang="en">Continue</div>
+      <div class="btn auto" lang="te">కొనసాగించండి</div>
     </div>
   </div>
   <p class="note">Indic translations run 15–30% longer than English. A button that fits "Continue" does not fit this.</p>

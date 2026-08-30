@@ -24,6 +24,9 @@ const node = (over: Partial<ProbeNode> = {}): ProbeNode => ({
   overflowHidden: false,
   ellipsis: false,
   overflowing: false,
+  overflowPx: 0,
+  clipsHorizontally: false,
+  isControl: false,
   lang: "hi",
   ...over,
 });
@@ -94,6 +97,36 @@ describe("tofu and markup splits", () => {
     const [f] = analyse([node({ splitClusters: ["स्कृ"] })]);
     expect(f!.check).toBe("linebreak");
     expect(f!.severity).toBe("error");
+  });
+});
+
+describe("overflow", () => {
+  it("stays quiet when the text fits", () => {
+    expect(checks([node({ clipsHorizontally: true, overflowPx: 0 })])).not.toContain("overflow");
+  });
+
+  it("stays quiet when the box does not clip, however far it overruns", () => {
+    // Overflow that scrolls or wraps is not a defect.
+    expect(checks([node({ clipsHorizontally: false, overflowPx: 90 })])).not.toContain("overflow");
+  });
+
+  it("reports how many pixels short the control is", () => {
+    const [f] = analyse([node({ clipsHorizontally: true, overflowPx: 34.6, isControl: true })]);
+    expect(f!.check).toBe("overflow");
+    expect(f!.title).toContain("35px");
+    expect(f!.severity).toBe("warning");
+  });
+
+  it("is only a note on ordinary text, where clipping is often deliberate", () => {
+    const [f] = analyse([node({ clipsHorizontally: true, overflowPx: 20, isControl: false })]);
+    expect(f!.severity).toBe("info");
+  });
+
+  it("says whether the cut at least gets an ellipsis", () => {
+    const [a] = analyse([node({ clipsHorizontally: true, overflowPx: 20, ellipsis: false })]);
+    expect(a!.detail).toContain("simply stops");
+    const [b] = analyse([node({ clipsHorizontally: true, overflowPx: 20, ellipsis: true })]);
+    expect(b!.detail).toContain("shaping-aware");
   });
 });
 
