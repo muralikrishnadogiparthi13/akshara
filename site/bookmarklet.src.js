@@ -152,7 +152,7 @@
     if (!isFinite(lh)) { cx.font = font; const m = cx.measureText("Hxg");
       lh = (m.fontBoundingBoxAscent || size * 0.8) + (m.fontBoundingBoxDescent || size * 0.2); }
     const ih = ink(text, font);
-    if (ih > lh * 1.02) {
+    if (lh > 1 && ih > lh * 1.02) {
       const hid = cs.overflow === "hidden" || cs.overflowX === "hidden";
       addF("clip|" + cs.fontFamily + "|" + Math.round(size) + "|" + Math.round(lh), {
         c: "clipping", sev: hid ? "error" : "warn",
@@ -198,11 +198,11 @@
           fix: "cut on akshara boundaries, not UTF-16 indices" }, el);
       }
       const last = sg[sg.length - 1], sc = scriptOf(last.t.codePointAt(0));
-      if (last.open && sc && !sc[3]) {
-        const ell = /(?:…|\.\.\.)\s*$/.test(text);
-        addF("tr-v|" + text, { c: "truncation", sev: ell ? "error" : "warn",
-          title: ell ? "Cut mid-letter, then given an ellipsis" : "Ends on a half-formed letter",
-          txt: text, fix: "cut on akshara boundaries, not UTF-16 indices" }, el);
+      // Only an ellipsis after the virama is evidence — see checks/static.ts.
+      if (last.open && sc && /(?:…|\.\.\.)\s*$/.test(text)) {
+        addF("tr-v|" + text, { c: "truncation", sev: sc[3] ? "info" : "warn",
+          title: "Cut mid-letter, then given an ellipsis", txt: text,
+          fix: "cut on akshara boundaries, not UTF-16 indices" }, el);
       }
     }
     if (text.normalize("NFC") !== text) {

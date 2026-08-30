@@ -46,26 +46,37 @@ export function checkTruncation(text: string): Finding[] {
     });
   }
 
+  /* A trailing virama used to be reported on its own. Auditing nineteen real
+   * sites showed why that was wrong: 141 of 144 such findings were correctly
+   * spelled words.
+   *
+   * Telugu ends words on a bare consonant constantly, above all in the English
+   * loanwords a news site is full of — పార్లమెంట్, పాకిస్తాన్, మయన్మార్. Hindi does
+   * it too: వన్దే మాతరమ् is spelled with a final halant. Tamil and Malayalam were
+   * already excluded, and the honest conclusion is that no script excludes it
+   * reliably.
+   *
+   * So the signal is not the virama; it is the ellipsis sitting after it. That
+   * combination means something cut the string and then admitted to it. */
   const last = segs[segs.length - 1]!;
-  if (last.openVirama && !last.script!.wordFinalViramaCommon) {
-    const truncated = ELLIPSIS.test(text);
+  if (last.openVirama && ELLIPSIS.test(text)) {
+    const common = last.script!.wordFinalViramaCommon;
     out.push({
       check: "truncation",
-      severity: truncated ? "error" : "warning",
-      title: truncated
-        ? "Cut mid-letter, then given an ellipsis"
-        : "Ends on a half-formed letter",
+      severity: common ? "info" : "warning",
+      title: "Cut mid-letter, then given an ellipsis",
       detail:
-        `The last letter ends on a bare ${last.script!.name} virama, so it is drawn as half a ` +
-        `consonant with a visible killer stroke. ${
-          truncated
-            ? "The trailing ellipsis confirms this string was truncated in code."
-            : `Words in ${last.script!.languages[0]} do not normally end this way.`
-        }`,
+        `The text ends on a bare ${last.script!.name} virama and then an ellipsis, which is what ` +
+        `slicing at a UTF-16 index and appending "…" produces. It draws as half a consonant with ` +
+        `a visible killer stroke.` +
+        (common
+          ? ` ${last.script!.languages[0]} does end words this way, so this may be a whole word ` +
+            `that simply reached the limit — worth an eye rather than a fix.`
+          : ""),
       text: display(text),
       script: last.script!.name,
       fix: "Truncate on akshara boundaries. `text.slice(0, n)` cannot do this correctly.",
-      evidence: { fragment: last.text, endsWithEllipsis: truncated },
+      evidence: { fragment: last.text },
     });
   }
 

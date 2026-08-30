@@ -42,6 +42,10 @@ describe("clipping", () => {
     expect(checks([node({ inkHeightPx: 30, lineHeightPx: 26 })])).toContain("clipping");
   });
 
+  it("ignores line-height:0, which is a layout idiom not a zero-height box", () => {
+    expect(checks([node({ inkHeightPx: 16, lineHeightPx: 0 })])).not.toContain("clipping");
+  });
+
   it("tolerates a hairline overshoot from antialiasing", () => {
     // 26.2 over 26 is hinting noise, not a bug worth a developer's afternoon.
     expect(checks([node({ inkHeightPx: 26.2, lineHeightPx: 26 })])).not.toContain("clipping");
@@ -184,13 +188,26 @@ describe("string checks", () => {
     expect(f!.severity).toBe("error");
   });
 
-  it("escalates a dangling virama when an ellipsis confirms the cut", () => {
-    expect(checkTruncation("नमस्…")[0]!.severity).toBe("error");
-    expect(checkTruncation("नमस्")[0]!.severity).toBe("warning");
+  it("reports a dangling virama only when an ellipsis admits to the cut", () => {
+    expect(checkTruncation("नमस्…")[0]!.title).toContain("Cut mid-letter");
+    // Bare trailing virama, no ellipsis: not evidence of anything.
+    expect(checkTruncation("नमस्")).toHaveLength(0);
+  });
+
+  it("does not flag correctly spelled words that end on a consonant", () => {
+    // The false positives that made up 141 of 144 truncation findings across
+    // nineteen real sites. All are correct spellings.
+    for (const t of ["పార్లమెంట్", "పాకిస్తాన్", "మయన్మార్", "వన్దే మాతరమ్", "ಕನ್ನಡ", "வணக்கம்"]) {
+      expect(checkTruncation(t)).toHaveLength(0);
+    }
+  });
+
+  it("softens to a note where word-final viramas are ordinary", () => {
+    expect(checkTruncation("வணக்கம்…")[0]!.severity).toBe("info");
+    expect(checkTruncation("नमस्…")[0]!.severity).toBe("warning");
   });
 
   it("stays silent on Tamil and Malayalam word-final viramas", () => {
-    // The false positive that would make the tool unusable for two languages.
     expect(checkTruncation("வணக்கம்")).toHaveLength(0);
     expect(checkTruncation("മലയാളം")).toHaveLength(0);
     expect(checkTruncation("தமிழ்")).toHaveLength(0);

@@ -217,7 +217,11 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
       }, n);
     }
 
-    if (n.inkHeightPx > n.lineHeightPx * CLIP_TOLERANCE) {
+    // line-height:0 is a deliberate idiom for killing inline-block gaps, not a
+    // zero-height line box. Comparing ink against it reported the full ink
+    // height as the overrun and produced the three largest "findings" in an
+    // audit of nineteen sites, all of them meaningless.
+    if (n.lineHeightPx > 1 && n.inkHeightPx > n.lineHeightPx * CLIP_TOLERANCE) {
       const over = n.inkHeightPx - n.lineHeightPx;
       const ratio = n.latinInkHeightPx > 0 ? n.inkHeightPx / n.latinInkHeightPx : 0;
       add({
