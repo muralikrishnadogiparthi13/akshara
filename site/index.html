@@ -113,6 +113,31 @@
   .two .note.no { color:var(--bad); }
   @media (max-width:520px) { .two { grid-template-columns:1fr; gap:1.3rem; } }
 
+  /* paste-a-string checker ---------------------------------------------- */
+  .checker { margin:1.6rem 0; padding:1.4rem 0; border-top:1px solid var(--rule);
+             border-bottom:1px solid var(--rule); }
+  .checker textarea { width:100%; min-height:5.2rem; padding:.7rem .8rem; resize:vertical;
+                      background:transparent; color:var(--ink); border:1px solid var(--rule);
+                      font-family:var(--indic); font-size:1.15rem; line-height:1.7; }
+  .checker textarea:focus { outline:none; border-color:var(--ink); }
+  .samples { margin:.7rem 0 0; font:.72rem var(--mono); color:var(--soft); }
+  .samples button { background:none; border:0; padding:0 .55rem 0 0; margin:0;
+                    color:var(--soft); font:inherit; cursor:pointer;
+                    text-decoration:underline; text-underline-offset:3px; }
+  .samples button:hover { color:var(--ink); }
+  .counts { font:.75rem/1.9 var(--mono); color:var(--soft); margin-top:.9rem; }
+  .counts b { font-weight:400; color:var(--ink); }
+  .results { margin-top:.9rem; }
+  .r { padding:.75rem 0; border-top:1px solid var(--rule); }
+  .r .h { font:.72rem var(--mono); color:var(--soft); }
+  .r .h .s { color:var(--ink); }
+  .r .h .s.error { color:var(--bad); }
+  .r .ttl { font-size:.98rem; margin:.2rem 0 .25rem; }
+  .r .why { font-size:.85rem; color:var(--soft); line-height:1.5; }
+  .r .rx { font:.7rem/1.7 var(--mono); color:var(--faint); margin-top:.3rem; }
+  .clean { font:.78rem var(--mono); color:var(--soft); padding:.75rem 0;
+           border-top:1px solid var(--rule); }
+
   /* the cluster diagram ------------------------------------------------- */
   .cluster { display:flex; gap:1.6rem; align-items:baseline; margin:1.4rem 0 .8rem;
              flex-wrap:wrap; }
@@ -265,7 +290,27 @@
     dangling halant or a vowel sign decorating nothing. The right column counts aksharas.
   </p>
 
-  <h2><span class="num">04</span>Where a letter ends</h2>
+  <h2><span class="num">04</span>Check a string</h2>
+  <p>
+    The rendering checks need a real browser. These do not — truncation,
+    normalisation and numeral mixing are decisions about the text itself, so they
+    run here, instantly, on whatever you paste. Nothing leaves your browser.
+  </p>
+
+  <div class="checker">
+    <textarea id="inp" lang="hi" spellcheck="false" aria-label="text to check"></textarea>
+    <div class="samples">
+      try:
+      <button type="button" data-s="नमस्">a cut Hindi name</button>
+      <button type="button" data-s="ेलुगु">an orphaned vowel sign</button>
+      <button type="button" data-s="&#x0958;िला — २० November 2026">a legacy encoding</button>
+      <button type="button" data-s="வணக்கம், தமிழ்">correct Tamil</button>
+    </div>
+    <div class="counts" id="counts"></div>
+    <div class="results" id="results"></div>
+  </div>
+
+  <h2><span class="num">05</span>Where a letter ends</h2>
   <p>
     <code>Intl.Segmenter</code> cannot tell you. It implements UAX&nbsp;#29 grapheme
     clusters, and those split क्षि, which is one letter to anyone who reads it.
@@ -295,14 +340,14 @@
     and every cluster quietly splits in two.
   </p>
 
-  <h2><span class="num">05</span>What it reports</h2>
+  <h2><span class="num">06</span>What it reports</h2>
   <p>
     Real output from the torture fixture in the repository, evidence included, so the call
     can be checked rather than trusted.
   </p>
   <div class="report" id="reportEl"></div>
 
-  <h2><span class="num">06</span>What it will not report</h2>
+  <h2><span class="num">07</span>What it will not report</h2>
   <p>
     A linter is worth only as much as the false positives it declines to raise.
   </p>
@@ -328,7 +373,7 @@
     </p>
   </div>
 
-  <h2><span class="num">07</span>Installing</h2>
+  <h2><span class="num">08</span>Installing</h2>
 <pre><span class="c">// scan a page</span>
 npx akshara https://example.in --screenshot findings.png
 
@@ -405,6 +450,130 @@ const truncateAkshara = (t, n, e="…") => {
   if (s.length <= n) return t;
   return t.slice(0, n > 0 ? s[n-1].end : 0).replace(/\s+$/, "") + e;
 };
+
+/* Script table, mirroring src/scripts/tables.ts. wordFinalVirama matters most:
+   Tamil and Malayalam end words on a bare pulli, and calling that truncation
+   would condemn two entire languages. */
+const SCRIPTS = [
+  ["Devanagari", 0x0900, 0x097F, false, 0x0966],
+  ["Bengali",    0x0980, 0x09FF, false, 0x09E6],
+  ["Gurmukhi",   0x0A00, 0x0A7F, false, 0x0A66],
+  ["Gujarati",   0x0A80, 0x0AFF, false, 0x0AE6],
+  ["Odia",       0x0B00, 0x0B7F, false, 0x0B66],
+  ["Tamil",      0x0B80, 0x0BFF, true,  0x0BE6],
+  ["Telugu",     0x0C00, 0x0C7F, false, 0x0C66],
+  ["Kannada",    0x0C80, 0x0CFF, false, 0x0CE6],
+  ["Malayalam",  0x0D00, 0x0D7F, true,  0x0D66],
+  ["Sinhala",    0x0D80, 0x0DFF, true,  null],
+];
+const scriptOf = cp => SCRIPTS.find(s => cp >= s[1] && cp <= s[2]) || null;
+const isIndicDigit = cp => SCRIPTS.some(s => s[4] && cp >= s[4] && cp <= s[4] + 9);
+const hex = ch => ch.codePointAt(0).toString(16).toUpperCase().padStart(4, "0");
+
+/* Composition exclusions detected by round-trip, exactly as the library does:
+   if decomposing and recomposing does not return the character, the canonical
+   spelling is the decomposed one. No table to maintain. */
+const isLegacyPrecomposed = ch => {
+  const d = ch.normalize("NFD");
+  return d !== ch && d.normalize("NFC") !== ch;
+};
+
+function checkString(text) {
+  const out = [];
+  if (!text.trim()) return out;
+  const segs = segment(text).filter(s => scriptOf(s.text.codePointAt(0) || 0));
+  if (!segs.length) return out;
+
+  for (const s of segs) {
+    if (!s.broken) continue;
+    out.push({
+      check: "truncation", severity: "error",
+      title: "A vowel sign with nothing to attach to",
+      why: `The text opens on a combining mark (U+${hex(s.text)}), which decorates the letter before it — and there is no letter before it. The string was cut at a UTF-16 index instead of a letter boundary.`,
+      ev: `fragment ${s.text}`,
+    });
+    break;
+  }
+
+  const last = segs[segs.length - 1];
+  const sc = scriptOf(last.text.codePointAt(0));
+  if (last.openVirama && sc && !sc[3]) {
+    const ell = /(?:…|\.\.\.)\s*$/.test(text);
+    out.push({
+      check: "truncation", severity: ell ? "error" : "warning",
+      title: ell ? "Cut mid-letter, then given an ellipsis" : "Ends on a half-formed letter",
+      why: `The last letter ends on a bare ${sc[0]} virama, so it draws as half a consonant with a visible killer stroke. ` +
+           (ell ? "The trailing ellipsis confirms this was truncated in code."
+                : `Words in ${sc[0]} do not normally end this way.`),
+      ev: `fragment ${last.text}`,
+    });
+  }
+
+  const legacy = [...new Set([...text].filter(isLegacyPrecomposed))];
+  if (legacy.length) {
+    out.push({
+      check: "normalisation", severity: "warning",
+      title: `Uses deprecated precomposed ${legacy.length > 1 ? "characters" : "character"} ${legacy.join(" ")}`,
+      why: "Unicode excludes these from composition, so the canonical spelling is the decomposed one and NFC will not convert them for you. The same letter typed on a normal keyboard produces different bytes, and the two never compare equal.",
+      ev: legacy.map(c => `U+${hex(c)}`).join(" "),
+    });
+  } else if (text.normalize("NFC") !== text) {
+    out.push({
+      check: "normalisation", severity: "warning",
+      title: "Not in NFC form",
+      why: "Two strings that look identical on screen will compare, sort and deduplicate as different, and a search for one will not find the other.",
+      ev: `${text.length} code units now, ${text.normalize("NFC").length} after NFC`,
+    });
+  }
+
+  let ind = false, asc = false;
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    if (isIndicDigit(cp)) ind = true;
+    else if (cp >= 0x30 && cp <= 0x39) asc = true;
+  }
+  if (ind && asc) {
+    out.push({
+      check: "numerals", severity: "info",
+      title: "Two numeral systems in one string",
+      why: "Most Indian products use ASCII digits even in Indic text; mixing them mid-sentence reads as a data error.",
+      ev: "",
+    });
+  }
+  return out;
+}
+
+const inp = document.getElementById("inp");
+function runChecker() {
+  const t = inp.value;
+  const segs = segment(t);
+  const ind = segs.filter(s => scriptOf(s.text.codePointAt(0) || 0));
+  const names = [...new Set(ind.map(s => scriptOf(s.text.codePointAt(0))[0]))];
+
+  document.getElementById("counts").innerHTML = t.trim()
+    ? `<b>${t.length}</b> UTF-16 units · <b>${[...t].length}</b> code points · ` +
+      `<b>${segs.length}</b> letters · ${names.length ? names.join(", ") : "no Indic script"}` +
+      (ind.length ? ` · safe cut to 5: <b lang="hi">${escHtml(truncateAkshara(t, 5))}</b>` : "")
+    : "";
+
+  const found = checkString(t);
+  document.getElementById("results").innerHTML = !t.trim() ? "" : found.length
+    ? found.map(f => `
+        <div class="r">
+          <div class="h">${f.check} · <span class="s ${f.severity}">${f.severity}</span></div>
+          <div class="ttl">${escHtml(f.title)}</div>
+          <div class="why">${escHtml(f.why)}</div>
+          ${f.ev ? `<div class="rx">${escHtml(f.ev)}</div>` : ""}
+        </div>`).join("")
+    : `<div class="clean">nothing wrong with this string</div>`;
+}
+const escHtml = x => String(x).replace(/[&<>]/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;" }[c]));
+inp.addEventListener("input", runChecker);
+for (const b of document.querySelectorAll(".samples button")) {
+  b.addEventListener("click", () => { inp.value = b.dataset.s; runChecker(); inp.focus(); });
+}
+inp.value = "नमस्";
+runChecker();
 
 /* theme ---------------------------------------------------------------- */
 document.getElementById("themeBtn").addEventListener("click", () => {
