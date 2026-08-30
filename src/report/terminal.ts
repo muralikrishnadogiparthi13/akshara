@@ -49,7 +49,10 @@ export function renderTerminal(result: ScanResult): string {
       current = f.check;
       lines.push(bold(`  ${f.check}`));
     }
-    lines.push(`    ${MARK[f.severity](LABEL[f.severity])} ${f.title}`);
+    const times = f.occurrences && f.occurrences > 1
+      ? dim(`  × ${f.occurrences} elements`)
+      : "";
+    lines.push(`    ${MARK[f.severity](LABEL[f.severity])} ${f.title}${times}`);
     lines.push(`          ${dim(quote(f.text))}`);
     lines.push(`          ${wrap(f.detail, 74, 10)}`);
     if (f.fix) lines.push(`          ${green("fix")} ${wrap(f.fix, 70, 14)}`);

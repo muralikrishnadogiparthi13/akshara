@@ -97,16 +97,51 @@ describe("tofu and markup splits", () => {
   });
 });
 
-describe("deduplication", () => {
-  it("collapses the same finding repeated by a repeated component", () => {
-    const n = node({ inkHeightPx: 30, lineHeightPx: 26 });
-    expect(analyse([n, n, n]).filter((f) => f.check === "clipping")).toHaveLength(1);
+describe("grouping by root cause", () => {
+  it("reports one CSS rule once, however many elements it breaks", () => {
+    // The case from the real world: one font-family declaration produced 215
+    // individually-correct fallback findings on a single news homepage.
+    const many = Array.from({ length: 215 }, (_, i) =>
+      node({ requestedFamily: "Arial", resolvedFamily: "sans-serif", selector: `p:nth-child(${i})` }),
+    );
+    const found = analyse(many).filter((f) => f.check === "fallback");
+    expect(found).toHaveLength(1);
+    expect(found[0]!.occurrences).toBe(215);
   });
 
-  it("keeps findings from different elements apart", () => {
+  it("keeps a sample of where else it appears", () => {
+    const many = Array.from({ length: 10 }, (_, i) =>
+      node({ requestedFamily: "Arial", resolvedFamily: "sans-serif", selector: `p.x${i}` }),
+    );
+    const [f] = analyse(many);
+    expect(f!.alsoAt!.length).toBeGreaterThan(0);
+    expect(f!.alsoAt!.length).toBeLessThanOrEqual(4);
+  });
+
+  it("groups clipping by the CSS rule, not the element", () => {
     const a = node({ inkHeightPx: 30, lineHeightPx: 26, selector: "div.a" });
     const b = node({ inkHeightPx: 30, lineHeightPx: 26, selector: "div.b" });
+    const found = analyse([a, b]).filter((f) => f.check === "clipping");
+    expect(found).toHaveLength(1);
+    expect(found[0]!.occurrences).toBe(2);
+  });
+
+  it("separates clipping that comes from a different rule", () => {
+    const a = node({ inkHeightPx: 30, lineHeightPx: 26, fontSizePx: 16 });
+    const b = node({ inkHeightPx: 44, lineHeightPx: 38, fontSizePx: 24 });
     expect(analyse([a, b]).filter((f) => f.check === "clipping")).toHaveLength(2);
+  });
+
+  it("still reports each damaged string separately", () => {
+    // Two different broken strings are two defects, not one repeated.
+    const a = node({ text: "नमस्…", selector: "p.a" });
+    const b = node({ text: "ेलुगु", selector: "p.b" });
+    expect(analyse([a, b]).filter((f) => f.check === "truncation")).toHaveLength(2);
+  });
+
+  it("leaves occurrences unset when something happens once", () => {
+    const [f] = analyse([node({ inkHeightPx: 30, lineHeightPx: 26 })]);
+    expect(f!.occurrences).toBeUndefined();
   });
 });
 

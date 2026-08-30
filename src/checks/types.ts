@@ -29,6 +29,14 @@ export interface Finding {
   fix?: string;
   /** Numbers behind the call, so a reader can check our working. */
   evidence?: Record<string, string | number | boolean>;
+  /**
+   * How many elements share this root cause. One CSS rule can produce hundreds
+   * of individually-correct findings; a report that prints each one is a report
+   * nobody reads.
+   */
+  occurrences?: number;
+  /** A few more places it appears, for orientation. */
+  alsoAt?: string[];
 }
 
 export interface ScanResult {

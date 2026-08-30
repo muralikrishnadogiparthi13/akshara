@@ -76,26 +76,53 @@ export async function scan(url: string, opts: ScanOptions = {}): Promise<ScanRes
 }
 
 /** Turn raw measurements into findings. Kept pure so it is testable without a browser. */
-export function analyse(nodes: ProbeNode[]): Finding[] {
-  const out: Finding[] = [];
-  const seen = new Set<string>();
+/**
+ * What makes two findings the same problem.
+ *
+ * A single `font-family: Arial, sans-serif` can produce a correct fallback
+ * finding on every Hindi string on the page — 215 of them on one real site.
+ * They are one bug in one CSS rule, so they group by the rule, not the element.
+ * Text-level findings stay per-string: each damaged string is its own defect.
+ */
+function groupKey(f: Finding, n: ProbeNode): string {
+  switch (f.check) {
+    case "fallback":
+      return `fallback|${n.requestedFamily}|${n.resolvedFamily ?? "none"}`;
+    case "clipping":
+      return `clipping|${n.fontFamily}|${Math.round(n.fontSizePx)}|${Math.round(n.lineHeightPx)}`;
+    case "tofu":
+      return `tofu|${n.fontFamily}|${n.tofu.join("")}`;
+    case "lang":
+      return "lang";
+    default:
+      // truncation, normalisation, numerals, linebreak — one per damaged string.
+      return `${f.check}|${f.selector ?? ""}|${f.text}`;
+  }
+}
 
-  const push = (f: Finding) => {
-    // One finding per (check, selector, text) — a repeated component should not
-    // produce fifty identical rows.
-    const key = `${f.check}|${f.selector ?? ""}|${f.text}`;
-    if (seen.has(key)) return;
-    seen.add(key);
-    out.push(f);
+export function analyse(nodes: ProbeNode[]): Finding[] {
+  const groups = new Map<string, { finding: Finding; count: number; where: string[] }>();
+
+  const add = (f: Finding, n: ProbeNode) => {
+    const key = groupKey(f, n);
+    const g = groups.get(key);
+    if (g) {
+      g.count++;
+      if (g.where.length < 4 && f.selector && !g.where.includes(f.selector)) {
+        g.where.push(f.selector);
+      }
+      return;
+    }
+    groups.set(key, { finding: f, count: 1, where: [] });
   };
 
   for (const n of nodes) {
     const where = { selector: n.selector, rect: n.rect };
 
-    for (const f of checkText(n.text)) push({ ...f, ...where });
+    for (const f of checkText(n.text)) add({ ...f, ...where }, n);
 
     if (n.tofu.length) {
-      push({
+      add({
         check: "tofu",
         severity: "error",
         title: `${n.tofu.length} character${n.tofu.length > 1 ? "s" : ""} rendering as a blank box`,
@@ -108,11 +135,11 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
         fix: "Widen the webfont subset, or add a Noto font for this script to the stack.",
         evidence: { fontFamily: n.fontFamily, characters: n.tofu.join(" ") },
         ...where,
-      });
+      }, n);
     }
 
     if (n.requestedFamilyMissing && n.resolvedFamily === null) {
-      push({
+      add({
         check: "fallback",
         severity: "warning",
         title: `"${n.requestedFamily}" never loaded`,
@@ -124,9 +151,9 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
         fix: "Check the @font-face src and the exact family name.",
         evidence: { requested: n.requestedFamily },
         ...where,
-      });
+      }, n);
     } else if (n.resolvedFamily === null) {
-      push({
+      add({
         check: "fallback",
         severity: "warning",
         title: "No font in the stack covers this script",
@@ -138,9 +165,9 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
         fix: `Add a font that covers this script to \`font-family\` before the generic fallback.`,
         evidence: { requested: n.fontFamily },
         ...where,
-      });
+      }, n);
     } else if (n.requestedFamily && n.resolvedFamily !== n.requestedFamily) {
-      push({
+      add({
         check: "fallback",
         severity: "warning",
         title: `Falls back to ${n.resolvedFamily} — your English is in ${n.requestedFamily}`,
@@ -152,13 +179,13 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
         fix: `Pick an Indic companion face with matching weight and x-height, or use a family that covers both.`,
         evidence: { requested: n.requestedFamily, resolved: n.resolvedFamily },
         ...where,
-      });
+      }, n);
     }
 
     if (n.inkHeightPx > n.lineHeightPx * CLIP_TOLERANCE) {
       const over = n.inkHeightPx - n.lineHeightPx;
       const ratio = n.latinInkHeightPx > 0 ? n.inkHeightPx / n.latinInkHeightPx : 0;
-      push({
+      add({
         check: "clipping",
         severity: n.overflowHidden ? "error" : "warning",
         title: `Glyphs are ${over.toFixed(1)}px taller than the line box`,
@@ -182,11 +209,11 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
           overflowHidden: n.overflowHidden,
         },
         ...where,
-      });
+      }, n);
     }
 
     if (n.splitClusters.length) {
-      push({
+      add({
         check: "linebreak",
         severity: "error",
         title: "Markup cuts through the middle of a letter",
@@ -202,11 +229,11 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
         fix: "Split on akshara boundaries before wrapping either half in an element.",
         evidence: { clusters: n.splitClusters.slice(0, 5).join(" ") },
         ...where,
-      });
+      }, n);
     }
 
     if (n.ellipsis && n.overflowing) {
-      push({
+      add({
         check: "truncation",
         severity: "info",
         title: "Text is being ellipsised by CSS",
@@ -216,11 +243,11 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
           "mid-letter breaks come from.",
         text: n.text,
         ...where,
-      });
+      }, n);
     }
 
     if (!n.lang) {
-      push({
+      add({
         check: "lang",
         severity: "info",
         title: "No lang attribute on this text",
@@ -231,11 +258,15 @@ export function analyse(nodes: ProbeNode[]): Finding[] {
         text: n.text,
         fix: 'Set lang on the nearest container, e.g. <div lang="te">.',
         ...where,
-      });
+      }, n);
     }
   }
 
-  return out;
+  return [...groups.values()].map(({ finding, count, where }) =>
+    count > 1
+      ? { ...finding, occurrences: count, ...(where.length ? { alsoAt: where } : {}) }
+      : finding,
+  );
 }
 
 function round(n: number): number {
