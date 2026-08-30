@@ -194,7 +194,9 @@ export function truncate(text: string, limit: number, ellipsis = "…"): string 
   if (segs.length <= limit) return text;
   const kept = segs.slice(0, Math.max(0, limit));
   const end = kept.length ? kept[kept.length - 1]!.end : 0;
-  return text.slice(0, end) + ellipsis;
+  // Drop trailing space before the ellipsis — "नमस्ते …" reads as a gap where a
+  // word was removed, which is exactly the wrong impression.
+  return text.slice(0, end).replace(/\s+$/, "") + ellipsis;
 }
 
 /** True when a cut at this UTF-16 index would land inside an akshara. */

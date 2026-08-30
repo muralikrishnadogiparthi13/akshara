@@ -139,6 +139,11 @@ describe("truncate", () => {
     expect(aksharas(truncate("नमस्ते", 3)).some((s) => s.openVirama)).toBe(false);
   });
 
+  it("does not leave a space stranded before the ellipsis", () => {
+    // "नमस्ते …" reads as a gap where a word was removed.
+    expect(truncate("नमस्ते दोस्तों", 4)).toBe("नमस्ते…");
+  });
+
   it("handles a zero limit", () => {
     expect(truncate("नमस्ते", 0)).toBe("…");
   });
