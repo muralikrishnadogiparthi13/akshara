@@ -243,10 +243,29 @@
     <span class="soft" style="font-size:.8rem">← drag me up to the bookmarks bar (⌘⇧B shows it)</span>
   </p>
   <p class="soft" style="font-size:.85rem">
-    Dragging not working? <button class="linkish" id="bmCopy" type="button">Copy the code</button>
-    instead, then right-click your bookmarks bar → <em>Add page…</em>, give it any name and
-    paste this as the URL.
+    Dragging not working? <button class="linkish" id="bmCopy" type="button">Copy the bookmark URL</button>,
+    then right-click the bookmarks bar → <em>Add page…</em> and paste it as the URL.
+    <strong>Not into the address bar</strong> — Chrome silently strips
+    <code>javascript:</code> when you paste there, which is the usual reason a bookmarklet
+    does nothing.
     <span id="bmCopied" class="copied"></span>
+  </p>
+
+  <h3>Or skip bookmarks entirely</h3>
+  <p>
+    If that is still fighting you, paste the code into the console instead. It always works
+    and there is nothing to save.
+  </p>
+  <p class="soft" style="font-size:.88rem">
+    <button class="linkish" id="bmCopyRaw" type="button">Copy the plain code</button> ·
+    open any page · <kbd>⌥⌘J</kbd> (Mac) or <kbd>Ctrl&nbsp;Shift&nbsp;J</kbd> · paste · Enter.
+    <span id="bmCopiedRaw" class="copied"></span>
+  </p>
+  <p class="soft" style="font-size:.82rem">
+    Chrome asks you to type <code>allow pasting</code> the first time it sees a paste into
+    the console. That warning is aimed at scams that talk people into pasting code they have
+    not read — this code is <a href="https://github.com/muralikrishnadogiparthi13/akshara/blob/main/site/bookmarklet.src.js">right here</a>,
+    and you should read it before trusting it, exactly as that warning intends.
   </p>
   <p class="soft" style="font-size:.88rem">
     It works because it is not cross-origin: a bookmarklet is first-party script in a page
@@ -654,6 +673,18 @@ runChecker();
       () => { said.textContent = "copied — now paste it as the bookmark's URL";
               setTimeout(() => (said.textContent = ""), 4000); },
       () => { said.textContent = "clipboard blocked — drag the button instead"; },
+    );
+  });
+
+  // The console wants the bare function, not the javascript: URL.
+  const raw = document.getElementById("bmCopyRaw");
+  const saidRaw = document.getElementById("bmCopiedRaw");
+  raw.addEventListener("click", () => {
+    const code = decodeURIComponent(link.getAttribute("href").slice("javascript:".length));
+    navigator.clipboard.writeText(code).then(
+      () => { saidRaw.textContent = "copied — paste it into the console and press Enter";
+              setTimeout(() => (saidRaw.textContent = ""), 5000); },
+      () => { saidRaw.textContent = "clipboard blocked"; },
     );
   });
 }
