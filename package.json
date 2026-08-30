@@ -1,7 +1,7 @@
 {
-  "name": "akshara",
+  "name": "akshara-qc",
   "version": "0.1.0",
-  "description": "Find broken Indic text rendering on the web — clipped ascenders, tofu, font fallback, mid-cluster truncation and line breaks inside a syllable.",
+  "description": "Find broken Indic text rendering on the web \u2014 clipped ascenders, tofu, font fallback, mid-cluster truncation and line breaks inside a syllable.",
   "keywords": [
     "indic",
     "devanagari",
@@ -53,5 +53,14 @@
     "playwright": "^1.49.0",
     "typescript": "^5.7.2",
     "vitest": "^2.1.8"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/muralikrishnadogiparthi13/akshara.git"
+  },
+  "homepage": "https://muralikrishnadogiparthi13.github.io/akshara/",
+  "bugs": {
+    "url": "https://github.com/muralikrishnadogiparthi13/akshara/issues"
+  },
+  "author": "Murali Krishna Dogiparthi"
 }

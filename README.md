@@ -7,7 +7,7 @@
 Point it at a page. It reports where your Hindi, Telugu, Tamil, Kannada, Bengali or Marathi text is clipped, tofu'd, silently rendered in the wrong font, or cut in half.
 
 ```bash
-npx akshara https://example.in
+npx akshara-qc https://example.in
 ```
 
 ```
@@ -43,7 +43,7 @@ Every Indian consumer app ships Indic text. Almost none test it, because the peo
 ## Install
 
 ```bash
-npm install -D akshara
+npm install -D akshara-qc
 npx playwright install chromium
 ```
 
@@ -71,7 +71,7 @@ Exit code is non-zero when anything at or above `--fail-on` is found, so it drop
 **As a library**
 
 ```ts
-import { truncate, aksharaLength, segment, checkText } from "akshara";
+import { truncate, aksharaLength, segment, checkText } from "akshara-qc";
 
 truncate("नमस्ते दोस्तों", 3);   // "नमस्ते…"  — never a dangling halant
 "नमस्ते".slice(0, 4);            // "नमस्"    — half a letter
@@ -110,7 +110,7 @@ A virama binds forward into the next consonant; every combining mark binds backw
 
 ```yaml
 - run: npx playwright install --with-deps chromium
-- run: npx akshara http://localhost:3000 --fail-on error
+- run: npx akshara-qc http://localhost:3000 --fail-on error
 ```
 
 ## The torture test
@@ -118,7 +118,7 @@ A virama binds forward into the next consonant; every combining mark binds backw
 `fixtures/torture.html` reproduces every bug class deliberately, broken and correct side by side. It is the regression suite, and it is the fastest way to see what these bugs actually look like:
 
 ```bash
-npx akshara ./fixtures/torture.html --screenshot torture.png --fail-on never
+npx akshara-qc ./fixtures/torture.html --screenshot torture.png --fail-on never
 ```
 
 ## Limitations

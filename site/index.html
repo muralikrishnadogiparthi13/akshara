@@ -375,10 +375,10 @@
 
   <h2><span class="num">08</span>Installing</h2>
 <pre><span class="c">// scan a page</span>
-npx akshara https://example.in --screenshot findings.png
+npx akshara-qc https://example.in --screenshot findings.png
 
 <span class="c">// or fix the string at its source, with no browser involved</span>
-import { truncate, aksharaLength } from "akshara";
+import { truncate, aksharaLength } from "akshara-qc";
 
 truncate("नमस्ते दोस्तों", 3);   <span class="c">// "नमस्ते…"  never a dangling halant</span>
 "नमस्ते".slice(0, 4);            <span class="c">// "नमस्"    half a letter</span>
@@ -588,7 +588,7 @@ const urlEl = document.getElementById("url"), cmdEl = document.getElementById("c
 const NOTE = "The command is above; paste it into a terminal.";
 function renderCmd() {
   const u = (urlEl.value || "https://example.in").trim().replace(/[<>&"']/g, "");
-  cmdEl.innerHTML = "npx akshara " + u + " --screenshot findings.png";
+  cmdEl.innerHTML = "npx akshara-qc " + u + " --screenshot findings.png";
 }
 urlEl.addEventListener("input", renderCmd);
 document.getElementById("go").addEventListener("click", () => {
